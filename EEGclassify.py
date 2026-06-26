@@ -163,7 +163,7 @@ model = EEGclassification(chans=args.chans, timestamp=args.timestamp, cls=args.c
 
 
 if args.dataset == "imagine_decode":
-    with open("./Chisco/json/textmaps.json", "r") as file:
+    with open("./Chisco/json/textmaps.json", "r", encoding="utf-8") as file:
         textmaps_data = json.load(file)   
     textmaps = defaultdict(lambda: -1, textmaps_data)
     reversemaps = defaultdict(list)

@@ -1,0 +1,11 @@
+ds005170/
+Chisco/derivatives/
+checkpoint/
+chisco_env/
+__pycache__/
+*.pkl
+*.fif
+*.edf
+*.pyc
+.streamlit/
+*.xlsx

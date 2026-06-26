@@ -36,9 +36,15 @@ import re
 
 def get_imagine(sub: str, epoch: int):
     paths = f"./Chisco/derivatives/preprocessed_pkl/sub-{sub}/eeg/sub-{sub}_task-imagine_run-0{str(epoch)}_eeg.pkl"
+    #if not os.path.exists(paths): return list()
+    #pickles = pickle.load(open(paths, "rb"))
+    #print(sub, epoch, len(pickles))
     if not os.path.exists(paths): return list()
-    pickles = pickle.load(open(paths, "rb"))
-    print(sub, epoch, len(pickles))
+    try:
+        pickles = pickle.load(open(paths, "rb"))
+    except:
+        print(f"SKIPPING corrupted file: {paths}")
+        return list()
 
     for idx, trial in enumerate(pickles):
         assert isinstance(trial['input_features'], numpy.ndarray)

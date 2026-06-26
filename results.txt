@@ -1,0 +1,2 @@
+Namespace(seed=42, lr1=0.001, wd1=0.01, tau=0.0, warmup_ratio=0.1, epoch=10, batch=16, train_log=10, evals_log=100, checkpoint_log=100, checkpoint_path='checkpoint', chans=122, timestamp=165, pooling=None, size1=8, size2=8, feel1=125, feel2=25, cls=3, layer=0, dropout1=0.1, dropout2=0.1, sub='a', rand_guess=0, dataset='imagine_decode', subset_ratio=1.0)
+25 127 
