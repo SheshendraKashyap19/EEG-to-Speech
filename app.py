@@ -45,19 +45,34 @@ class EEGclassification(torch.nn.Module):
         output = self.linear(hidden)
         return output
 
+
 # ── Page config ────────────────────────────────────────────────
 st.set_page_config(page_title="Chisco EEG Decoder", page_icon="🧠", layout="wide")
+
 
 # ── Load textmaps ──────────────────────────────────────────────
 @st.cache_resource
 def load_textmaps():
+    # Chinese textmaps
     with open("Chisco/json/textmaps.json", "r", encoding="utf-8") as f:
         textmaps_data = json.load(f)
     textmaps = defaultdict(lambda: -1, textmaps_data)
     reverse_map = defaultdict(list)
     for phrase, cat in textmaps_data.items():
         reverse_map[cat].append(phrase)
-    return textmaps, reverse_map
+
+    # English textmaps
+    english_map = defaultdict(list)
+    try:
+        with open("Chisco/json/textmaps_english.json", "r", encoding="utf-8") as f:
+            english_data = json.load(f)
+        for phrase, cat in english_data.items():
+            english_map[cat].append(phrase)
+    except Exception:
+        pass
+
+    return textmaps, reverse_map, english_map
+
 
 # ── Find latest checkpoint ─────────────────────────────────────
 def get_latest_checkpoint():
@@ -67,11 +82,11 @@ def get_latest_checkpoint():
     files = [f for f in os.listdir(ckpt_dir) if f.endswith(".pt")]
     if not files:
         return None, None
-    # Sort by step number
-    files.sort(key=lambda x: int(x.replace("checkpoint-","").replace(".pt","")))
+    files.sort(key=lambda x: int(x.replace("checkpoint-", "").replace(".pt", "")))
     latest = files[-1]
-    step = latest.replace("checkpoint-","").replace(".pt","")
+    step = latest.replace("checkpoint-", "").replace(".pt", "")
     return os.path.join(ckpt_dir, latest), step
+
 
 # ── Load model ─────────────────────────────────────────────────
 @st.cache_resource
@@ -94,11 +109,13 @@ def load_model():
         st.error(f"Model load error: {e}")
         return None, None
 
+
 # ── SIDEBAR ────────────────────────────────────────────────────
 st.sidebar.title("🧠 Chisco EEG Decoder")
 st.sidebar.markdown("**Chinese Imagined Speech Decoding**")
 st.sidebar.markdown("---")
 page = st.sidebar.radio("Navigate", ["🏠 Home", "📂 Predict", "📊 Dashboard", "ℹ️ About"])
+
 
 # ── HOME ───────────────────────────────────────────────────────
 if page == "🏠 Home":
@@ -131,12 +148,13 @@ if page == "🏠 Home":
     - ℹ️ **About** — Project details and improvements
     """)
 
+
 # ── PREDICT ────────────────────────────────────────────────────
 elif page == "📂 Predict":
     st.title("📂 Upload EEG & Predict")
     st.markdown("---")
 
-    textmaps, reverse_map = load_textmaps()
+    textmaps, reverse_map, english_map = load_textmaps()
     model, step = load_model()
 
     if model is None:
@@ -214,27 +232,39 @@ elif page == "📂 Predict":
                 )
                 st.plotly_chart(fig2, use_container_width=True)
 
-                # Sample phrases in predicted category
-                phrases = reverse_map.get(predicted_cat, [])[:8]
-                st.markdown(f"### 💬 Sample phrases in predicted Category {predicted_cat}:")
-                cols = st.columns(2)
-                for i, p in enumerate(phrases):
-                    cols[i%2].write(f"• {p}")
+                # Show Chinese and English phrases
+                st.markdown(f"### 💬 Phrases in predicted Category {predicted_cat}")
+                chinese_phrases = reverse_map.get(predicted_cat, [])[:5]
+                english_phrases = english_map.get(predicted_cat, [])[:5]
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("🇨🇳 **Chinese**")
+                    for p in chinese_phrases:
+                        st.write(f"• {p}")
+                with col2:
+                    st.markdown("🇬🇧 **English**")
+                    for p in english_phrases:
+                        st.write(f"• {p}")
+
+                # Show actual phrase translation
+                actual_english = english_map.get(actual_category, ["No translation available"])[0]
+                st.info(f"🇨🇳 Actual phrase: **{actual_text}**  |  🇬🇧 English: **{actual_english}**")
 
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 # ── DASHBOARD ──────────────────────────────────────────────────
 elif page == "📊 Dashboard":
     st.title("📊 Training Results Dashboard")
     st.markdown("---")
 
-    # Auto load from checkpoint folder
     ckpt_dir = "checkpoint"
     if os.path.exists(ckpt_dir):
         files = [f for f in os.listdir(ckpt_dir) if f.endswith(".pt")]
         if files:
-            steps_available = sorted([int(f.replace("checkpoint-","").replace(".pt","")) for f in files])
+            steps_available = sorted([int(f.replace("checkpoint-", "").replace(".pt", "")) for f in files])
             st.success(f"✅ Found {len(files)} checkpoints: steps {steps_available}")
 
     st.markdown("### Paste your training log here")
@@ -255,10 +285,10 @@ elif page == "📊 Dashboard":
                 steps.append(int(s.group(1)))
                 accs.append(float(a.group(1))*100)
                 max_accs.append(float(m.group(1))*100)
-                if f: f1s.append(float(f.group(1))*100)
+                if f:
+                    f1s.append(float(f.group(1))*100)
 
         if steps:
-            # Metrics
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Best Accuracy", f"{max(max_accs):.2f}%")
@@ -267,7 +297,6 @@ elif page == "📊 Dashboard":
             with col3:
                 st.metric("Steps Trained", steps[-1])
 
-            # Accuracy graph
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=steps, y=accs, mode='lines+markers',
                 name='Accuracy', line=dict(color='royalblue', width=2)))
@@ -283,13 +312,13 @@ elif page == "📊 Dashboard":
                 xaxis_title="Step", yaxis_title="Score (%)", height=400)
             st.plotly_chart(fig, use_container_width=True)
 
-    # Comparison table
     st.markdown("### 📊 Model Comparison Table")
     st.table({
         "Method": ["layer=1 (original README)", "layer=0 (fixed)", "Your result (so far)"],
-        "Accuracy (%)": ["~5%", "~14%", f"{11.7}%"],
-        "Notes": ["Wrong hyperparameter", "Correct setting", "Still training..."]
+        "Accuracy (%)": ["~5%", "~14%", "~11.7%"],
+        "Notes": ["Wrong hyperparameter", "Correct setting", "Training completed"]
     })
+
 
 # ── ABOUT ──────────────────────────────────────────────────────
 elif page == "ℹ️ About":
@@ -311,11 +340,14 @@ elif page == "ℹ️ About":
     | Corrupted pkl files crash | Added try/except in `data_imagine.py` |
     | Windows UTF-8 encoding error | Added `encoding="utf-8"` |
     | Wrong hyperparameter in README | Found `--layer 0` fix from GitHub issues |
-    | No interface | Built this Streamlit app |
+    | Chinese to English translation | Added NLP translation using Google Translate |
+    | No interface | Built this Streamlit web app |
 
     ---
     ### Tech Stack
     - Python 3.10 + PyTorch
     - Streamlit + Plotly
     - HuggingFace Transformers
+    - Deep Translator (NLP)
     """)
+    #####
